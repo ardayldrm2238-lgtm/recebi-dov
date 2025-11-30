@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recep Dövmece - Mobile Fix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #111;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* --- TİTREŞİM EFEKTLERİ --- */
+        @keyframes screenShake {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-2px, 2px); }
+            50% { transform: translate(2px, -2px); }
+            75% { transform: translate(-2px, -2px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        .screen-shake-active {
+            animation: screenShake 0.1s ease-out;
+        }
+
+        /* --- GENEL EKRAN YAPISI --- */
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        /* --- GİRİŞ EKRANI --- */
+        #start-screen {
+            display: flex;
+            background-color: #000;
+            background-image: url('giris ekrani resmi.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        #start-btn {
+            padding: 25px 70px;
+            font-size: 2rem;
+            font-weight: 800;
+            color: white;
+            background: rgba(255, 0, 0, 0.8);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 40px rgba(255, 0, 0, 0.6);
+            transition: all 0.3s ease;
+            animation: pulse 1.5s infinite;
+            position: absolute;
+            bottom: 15%;
+        }
+
+        #start-btn:hover {
+            transform: scale(1.1);
+            background: rgba(255, 0, 0, 1);
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(255, 0, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+        }
+
+        /* --- OYUN EKRANI --- */
+        #game-screen {
+            background: radial-gradient(circle at center, #333 0%, #000 100%);
+            position: relative;
+        }
+
+        #character-container {
+            position: relative;
+            width: 450px;
+            height: 650px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #character-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+        }
+
+        .shake-char {
+            animation: charShake 0.15s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes charShake {
+            10%, 90% { transform: translate3d(-3px, 0, 0) rotate(-2deg); }
+            20%, 80% { transform: translate3d(5px, 0, 0) rotate(3deg); }
+            30%, 50%, 70% { transform: translate3d(-8px, 0, 0) rotate(-3deg); }
+            40%, 60% { transform: translate3d(8px, 0, 0) rotate(3deg); }
+        }
+
+        #punch-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: none;
+            z-index: 15;
+        }
+
+        /* Combo Text */
+        #combo-text {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 40px;
+            font-weight: 900;
+            color: #ffd700;
+            text-shadow: 0 0 10px orange;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 25;
+            transition: transform 0.1s;
+        }
+
+        .hitbox { position: absolute; z-index: 20; cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="red"><circle cx="12" cy="12" r="10"/></svg>') 16 16, auto; }
+        .hit-top { top: 0; left: 0; width: 100%; height: 30%; }
+        .hit-bottom { bottom: 0; left: 0; width: 100%; height: 30%; }
+        .hit-left { top: 30%; left: 0; width: 50%; height: 40%; }
+        .hit-right { top: 30%; right: 0; width: 50%; height: 40%; }
+
+        /* --- PRO IPHONE TASARIMI --- */
+        #phone-wrapper {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 50;
+            transform: scale(0.8); 
+            transform-origin: bottom right;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .phone-label {
+            color: white;
+            font-family: 'Brush Script MT', cursive;
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 5px rgba(255,255,255,0.5);
+            background: rgba(0,0,0,0.5);
+            padding: 5px 15px;
+            border-radius: 15px;
+            border: 1px solid #333;
+        }
+
+        #phone-container {
+            width: 320px;
+            height: 650px;
+            background-color: #000;
+            border-radius: 55px;
+            border: 8px solid #4a4a4a; 
+            box-shadow: 
+                0 0 0 4px #2a2a2a,
+                0 0 0 5px #6a6a6a,
+                0 30px 60px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Yan Tuşlar */
+        #phone-container::before {
+            content: ''; position: absolute; left: -14px; top: 100px;
+            width: 6px; height: 40px; background: #333; border-radius: 4px 0 0 4px;
+            box-shadow: 0 60px 0 #333;
+        }
+        #phone-container::after {
+            content: ''; position: absolute; right: -14px; top: 130px;
+            width: 6px; height: 60px; background: #333; border-radius: 0 4px 4px 0;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            width: 100px; height: 30px; background-color: #000; border-radius: 20px; z-index: 100;
+            transition: all 0.3s ease;
+        }
+
+        /* Flashlight Efekti */
+        @keyframes flashAnim {
+            0% { opacity: 0; }
+            50% { opacity: 0.8; filter: blur(20px); }
+            100% { opacity: 0; }
+        }
+        .flashlight-on::before {
+            content: ''; position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+            width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 60%);
+            z-index: -1;
+            animation: flashAnim 0.5s infinite;
+        }
+        
+        /* Kamera Flash Efekti */
+        @keyframes camFlash {
+            0% { opacity: 0; }
+            10% { opacity: 1; background: white; }
+            100% { opacity: 0; }
+        }
+        .cam-flash-effect {
+            position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index: 200;
+            animation: camFlash 0.2s ease-out;
+            background: white;
+            display: none;
+        }
+        .cam-flash-active {
+            display: block;
+        }
+
+        .home-bar {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            width: 120px; height: 5px; background-color: white; border-radius: 10px; z-index: 100;
+            cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        #phone-display {
+            width: 100%; height: 100%;
+            background-image: url('telefon wallpaper.png');
+            background-size: cover; background-position: center;
+            position: relative; overflow: hidden; border-radius: 46px;
+        }
+
+        .status-bar {
+            height: 50px; width: 100%; display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 25px 0 25px; box-sizing: border-box; color: white;
+            font-size: 14px; font-weight: 600; z-index: 90;
+        }
+
+        .app-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 20px; margin-top: 10px;
+        }
+        .app-item {
+            display: flex; flex-direction: column; align-items: center; transition: transform 0.1s; cursor: pointer;
+        }
+        .app-item:active { transform: scale(0.9); }
+        .app-icon {
+            width: 60px; height: 60px; border-radius: 14px; margin-bottom: 6px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); position: relative;
+            background-size: cover; background-position: center;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 24px; color: white;
+        }
+        .app-name {
+            color: white; font-size: 11px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); font-weight: 500;
+        }
+
+        /* --- UYGULAMA EKRANLARI --- */
+        .sub-app-screen {
+            display: none; width: 100%; height: 100%; background-color: #000;
+            color: white; position: absolute; top: 0; left: 0; z-index: 50;
+            flex-direction: column; animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .app-header {
+            padding: 55px 20px 15px 20px; font-size: 28px; font-weight: 800;
+            background: rgba(20,20,20,0.95); backdrop-filter: blur(10px);
+            border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between;
+        }
+
+        /* Instagram Mockup */
+        .story-circle { width: 60px; height: 60px; border-radius: 50%; border: 3px solid #e1306c; margin: 10px auto; background: #333; }
+        .insta-feed { padding: 20px; text-align: center; }
+        
+        /* Settings Mockup */
+        .setting-row { padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .toggle-switch { width: 40px; height: 24px; background: #34c759; border-radius: 20px; position: relative; }
+        .toggle-switch::after { content:''; position: absolute; right: 2px; top: 2px; width: 20px; height: 20px; background: white; border-radius: 50%; }
+
+        /* Camera App Stilleri */
+        #camera-app { background: black; }
+        .camera-view-finder {
+            flex: 1; background: #222; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;
+        }
+        #camera-preview-img {
+            max-width: 90%; max-height: 90%; filter: brightness(1.1); pointer-events: none;
+        }
+        .camera-controls {
+            height: 120px; background: black; display: flex; justify-content: center; align-items: center;
+            padding-bottom: 20px;
+        }
+        .shutter-btn {
+            width: 70px; height: 70px; border-radius: 50%; background: white; border: 4px solid rgba(255,255,255,0.3);
+            cursor: pointer; transition: transform 0.1s;
+        }
+        .shutter-btn:active { transform: scale(0.9); background: #ddd; }
+
+        /* Gallery App Stilleri */
+        #gallery-app { background: #000; }
+        .gallery-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; overflow-y: auto;
+        }
+        .gallery-item {
+            aspect-ratio: 1; background: #333; position: relative; overflow: hidden; cursor: pointer;
+        }
+        .gallery-item img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+
+        /* Clicker Game Stilleri */
+        #game-app { background: linear-gradient(to bottom, #1e3c72, #2a5298); text-align: center; }
+        .clicker-btn {
+            width: 150px; height: 150px; background: gold; border-radius: 50%; margin: 50px auto;
+            border: 5px solid orange; box-shadow: 0 10px 0 #b8860b; font-size: 50px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none;
+        }
+        .clicker-btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #b8860b; }
+        .score-display { font-size: 40px; color: white; font-weight: bold; margin-top: 20px; text-shadow: 0 2px 5px black;}
+
+        /* Arama Ekranı */
+        #call-screen {
+            display: none; flex-direction: column; align-items: center; justify-content: space-between;
+            padding: 80px 20px 60px 20px; height: 100%;
+            background: rgba(30, 30, 30, 0.7); backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px); color: white;
+            position: absolute; top: 0; left: 0; width: 100%; z-index: 80; box-sizing: border-box;
+        }
+        .caller-avatar {
+            width: 100px; height: 100px; background: #555; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 40px; margin-bottom: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .btn-call {
+            width: 75px; height: 75px; border-radius: 50%; border: none;
+            color: white; font-size: 32px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.2s; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .btn-accept { background-color: #34c759; }
+        .btn-decline { background-color: #ff3b30; }
+
+        /* --- ÖLÜM EKRANI --- */
+        #game-over-screen {
+            background-color: black;
+            color: #d63031;
+            text-align: center;
+        }
+        #dead-img {
+            max-width: 70%;
+            border: 5px solid #d63031;
+            box-shadow: 0 0 80px #d63031;
+            margin-bottom: 20px;
+            animation: flicker 2s infinite;
+        }
+        @keyframes flicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+            20%, 24%, 55% { opacity: 0.5; }
+        }
+
+        /* --- BURASI DÜZELTİLDİ --- */
+        @media (max-width: 900px) {
+            #character-container { 
+                transform: scale(0.65); /* Karakteri mobilde küçülttüm */
+                left: 0; 
+                top: -50px; /* Biraz yukarı aldım ki telefon üzerine binmesin */
+            }
+            #phone-wrapper { 
+                right: -10px; /* Tam köşeye yapıştırdım */
+                bottom: -10px; 
+                transform: scale(0.5); /* Telefonu %50 küçülttüm */
+                transform-origin: bottom right; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="audio-bg" src="ana muzik.mp3" loop></audio>
+    <audio id="audio-punch" src="YUMRUK SESİ.mp3"></audio> 
+    <audio id="audio-ringtone" src="telefon zil sesi.mp3"></audio>
+    <audio id="audio-cinlama" src="Kulak Çınlama Sesi.mp3"></audio>
+    <audio id="audio-gameover" src="olum ekranı sesi.mp3"></audio>
+
+    <div id="start-screen" class="screen">
+        <button id="start-btn" onclick="startGame()">RECEBİ DÖV</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        
+        <div id="combo-text">COMBO!</div>
+
+        <div id="character-container">
+            <img id="character-img" src="hasarsiz.png" alt="Karakter">
+            <img id="punch-effect" src="" alt="Yumruk">
+            
+            <div class="hitbox hit-top" onclick="punch('top')"></div>
+            <div class="hitbox hit-bottom" onclick="punch('bottom')"></div>
+            <div class="hitbox hit-left" onclick="punch('left')"></div>
+            <div class="hitbox hit-right" onclick="punch('right')"></div>
+        </div>
+
+        <div id="phone-wrapper">
+            <div class="phone-label">Recebin tel</div>
+
+            <div id="phone-container">
+                <div class="dynamic-island"></div> 
+                <div class="home-bar" onclick="goHome()"></div>
+                
+                <div id="camera-flash-overlay" class="cam-flash-effect"></div>
+
+                <div id="phone-display">
+                    <div class="status-bar">
+                        <span id="clock-time">19:07</span>
+                        <span style="display:flex; gap:5px;">
+                            <span style="font-size:10px;">5G</span> 
+                            <span>%85</span>
+                        </span>
+                    </div>
+
+                    <div id="home-screen-apps">
+                        <div class="app-grid">
+                            <div class="app-item" onclick="openApp('insta')">
+                                <div class="app-icon" style="background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);">
+                                    <svg viewBox="0 0 24 24" width="30" height="30" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                                </div>
+                                <span class="app-name">Insta</span>
+                            </div>
+                            
+                            <div class="app-item" onclick="openApp('messages')">
+                                <div class="app-icon" style="background: #34c759;">
+                                    <span>💬</span>
+                                    <div class="badge" style="position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:20px; height:20px; font-size:12px; display:flex; justify-content:center; align-items:center;">9</div>
+                                </div>
+                                <span class="app-name">Mesajlar</span>
+                            </div>
+
+                            <div class="app-item" onclick="openApp('settings')">
+                                <div class="app-icon" style="background: #8e8e93;">⚙️</div>
+                                <span class="app-name">Ayarlar</span>
+                            </div>
+
+                            <div class="app-item" onclick="openApp('gallery')">
+                                <div class="app-icon" style="background: conic-gradient(from 45deg, violet, indigo, blue, green, yellow, orange, red);">
+                                    🖼️
+                                </div>
+                                <span class="app-name">Galeri</span>
+                            </div>
+
+                            <div class="app-item" onclick="openApp('game')">
+                                <div class="app-icon" style="background: #1e3c72;">
+                                    🎮
+                                </div>
+                                <span class="app-name">CoinKaz</span>
+                            </div>
+                            
+                            <div class="app-item">
+                                <div class="app-icon" style="background: #000; border:1px solid #333;">X</div>
+                                <span class="app-name">X</span>
+                            </div>
+                            
+                            <div class="app-item" onclick="toggleMusic()">
+                                <div class="app-icon" style="background: #ff2d55;">
+                                    <span id="music-icon">🎵</span>
+                                </div>
+                                <span class="app-name">Müzik</span>
+                            </div>
+                            
+                            <div class="app-item" onclick="openApp('camera')">
+                                <div class="app-icon" style="background: #333; border: 2px solid #555;">📷</div>
+                                <span class="app-name">Kamera</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="message-app" class="sub-app-screen">
+                        <div class="app-header">Mesajlar</div>
+                        <div class="msg-list" style="padding:0 20px;">
+                            <div class="msg-item" style="border-bottom:1px solid #333; padding:15px 0; display:flex;">
+                                <div style="width:45px; height:45px; background:#0984e3; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-right:15px; font-weight:bold;">B</div>
+                                <div style="flex:1;">
+                                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                                        <span style="font-weight:bold;">BahisBeta</span> <span style="color:#666; font-size:12px;">19:05</span>
+                                    </div>
+                                    <div style="color:#888; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:180px;">Tebrikler! Hesabınıza 500TL Freebet yüklendi.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="insta-app" class="sub-app-screen" style="background:#000;">
+                        <div class="app-header" style="font-size: 20px;">Instagram</div>
+                        <div style="padding: 10px; display:flex; gap:10px; overflow-x:auto;">
+                            <div style="text-align:center;"><div class="story-circle"></div><span>Senin Hik..</span></div>
+                            <div style="text-align:center;"><div class="story-circle" style="border-color:#ccc;"></div><span>Recep</span></div>
+                        </div>
+                        <div class="insta-feed">
+                            <div style="width:100%; height:200px; background:#222; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#555;">
+                                [Fotoğraf Yüklenemedi]
+                            </div>
+                            <p style="text-align:left; color:#ccc; font-size:12px; margin-top:5px;"><b>recep_abi</b> Bir gün seks yapmak istiyorum...</p>
+                        </div>
+                    </div>
+
+                    <div id="settings-app" class="sub-app-screen" style="background:#f2f2f7; color:black;">
+                        <div class="app-header" style="background:#f2f2f7; color:black; border-bottom:1px solid #ccc;">Ayarlar</div>
+                        <div style="margin-top:20px; background:white; border-radius:10px; mx-width:90%; margin:20px;">
+                            <div class="setting-row"><span>Uçak Modu</span> <div class="toggle-switch"></div></div>
+                            <div class="setting-row"><span>Wi-Fi</span> <span style="color:#999">Bağlı Değil</span></div>
+                            <div class="setting-row"><span>Bluetooth</span> <span style="color:#999">Açık</span></div>
+                        </div>
+                    </div>
+                    
+                    <div id="camera-app" class="sub-app-screen">
+                        <div class="app-header" style="position:absolute; top:0; width:100%; z-index:10; background:transparent; border:none;"></div>
+                        <div class="camera-view-finder">
+                            <img id="camera-preview-img" src="hasarsiz.png">
+                            <div style="position:absolute; top:20px; right:20px; color:yellow; font-weight:bold;">REC ●</div>
+                        </div>
+                        <div class="camera-controls">
+                            <div class="shutter-btn" onclick="takePhoto()"></div>
+                        </div>
+                    </div>
+
+                    <div id="gallery-app" class="sub-app-screen">
+                        <div class="app-header">Galeri</div>
+                        <div class="gallery-grid" id="gallery-grid-container">
+                            </div>
+                    </div>
+
+                    <div id="game-app" class="sub-app-screen">
+                         <div class="app-header" style="background:transparent; border:none;">CoinKaz</div>
+                         <div class="score-display">₺<span id="game-score">0</span></div>
+                         <div class="clicker-btn" onclick="clickCoin()">💰</div>
+                         <div style="font-size:12px; color:rgba(255,255,255,0.7); padding:20px;">YıldırımBet sponsorluğunda. Tıkla kazan!</div>
+                    </div>
+
+                </div>
+
+                <div id="call-screen">
+                    <div style="text-align:center; margin-top: 40px;">
+                        <div class="caller-avatar">👤</div>
+                        <div style="font-size:14px; color:#aaa; margin-bottom:5px;">WhatsApp Sesli Arama</div>
+                        <div style="font-size:28px; font-weight:bold;" id="caller-name">Bilinmeyen</div>
+                    </div>
+                    
+                    <div class="call-actions" style="display:flex; width:100%; justify-content:space-around; margin-bottom:40px;">
+                        <button class="btn-call btn-decline" onclick="declineCall()">✖</button>
+                        <button class="btn-call btn-accept" onclick="acceptCall()">✔</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="screen">
+        <img id="dead-img" src="aglayan.png" alt="Oyun Bitti">
+        <h1 style="font-size: 3rem; text-shadow: 0 0 10px red;">R.I.P RECEP):</h1>
+        <button id="start-btn" style="position:relative; bottom:auto;" onclick="resetGame()">Yeniden Başla</button>
+    </div>
+
+    <script>
+        // --- DEĞİŞKENLER ---
+        let healthLevel = 0; 
+        let punchCount = 0;
+        let isPhoneRinging = false;
+        let isGameActive = false;
+        let comboCount = 0;
+        let lastPunchTime = 0;
+        
+        let galleryPhotos = ["galeri1.png", "galeri2.png", "galeri3.png"];
+        let gameScore = 0;
+        
+        const bgMusic = document.getElementById('audio-bg');
+        const punchSound = document.getElementById('audio-punch');
+        const ringtone = document.getElementById('audio-ringtone');
+        const cinlama = document.getElementById('audio-cinlama');
+        const gameoverSound = document.getElementById('audio-gameover');
+
+        const charImg = document.getElementById('character-img');
+        const punchEffectImg = document.getElementById('punch-effect');
+        const phoneWrapper = document.getElementById('phone-wrapper');
+        const comboText = document.getElementById('combo-text');
+        
+        const callers = [
+            "Arda Güler", "RTE", "MC DONALDS", "Hakan Şükür", 
+            "mohammed", "gülsu", "bahcelievler esc"
+        ];
+
+        // --- OYUN AKIŞI ---
+
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'flex';
+            document.getElementById('game-over-screen').style.display = 'none';
+
+            isGameActive = true;
+            healthLevel = 0;
+            punchCount = 0;
+            comboCount = 0;
+            charImg.src = "hasarsiz.png";
+            charImg.classList.remove('shake-char');
+            
+            bgMusic.volume = 0.4;
+            bgMusic.currentTime = 0;
+            bgMusic.play().catch(e => console.log("Oynatma hatası"));
+
+            updateClock();
+            scheduleNextCall();
+        }
+
+        function resetGame() {
+            gameoverSound.pause();
+            gameoverSound.currentTime = 0;
+            cinlama.pause();
+            document.getElementById('call-screen').style.display = 'none';
+            goHome();
+            gameScore = 0;
+            document.getElementById('game-score').innerText = gameScore;
+            startGame();
+        }
+
+        // --- YUMRUK MEKANİĞİ ---
+
+        function punch(direction) {
+            if (!isGameActive || isPhoneRinging) return; 
+
+            const now = Date.now();
+            
+            if (now - lastPunchTime < 800) {
+                comboCount++;
+            } else {
+                comboCount = 1;
+            }
+            lastPunchTime = now;
+            showCombo(comboCount);
+
+            punchSound.currentTime = 0;
+            punchSound.play();
+
+            let effectFile = "";
+            switch(direction) {
+                case 'top': effectFile = "yumruk yukardan.png"; break;
+                case 'bottom': effectFile = "yumruk assagi.png"; break;
+                case 'left': effectFile = "yumruk soldan.png"; break;
+                case 'right': effectFile = "yumruk sagdan.png"; break;
+            }
+
+            punchEffectImg.src = effectFile;
+            punchEffectImg.style.display = 'block';
+            
+            charImg.classList.remove('shake-char');
+            void charImg.offsetWidth;
+            charImg.classList.add('shake-char');
+
+            document.body.classList.remove('screen-shake-active');
+            void document.body.offsetWidth;
+            document.body.classList.add('screen-shake-active');
+
+            setTimeout(() => {
+                punchEffectImg.style.display = 'none';
+            }, 150);
+
+            punchCount++;
+            checkDamageLevel();
+        }
+
+        function showCombo(count) {
+            if(count < 2) return;
+            comboText.innerText = "COMBO x" + count + "!";
+            comboText.style.opacity = "1";
+            comboText.style.transform = "translateX(-50%) scale(1.5)";
+            
+            setTimeout(() => {
+                comboText.style.transform = "translateX(-50%) scale(1)";
+                comboText.style.opacity = "0";
+            }, 600);
+        }
+
+        function checkDamageLevel() {
+            const hitsPerLevel = 8; 
+            if (healthLevel < 4) {
+                if (punchCount >= (healthLevel + 1) * hitsPerLevel) {
+                    healthLevel++;
+                    updateCharacterImage();
+                }
+            } else {
+                if (punchCount >= (4 * hitsPerLevel) + 6) {
+                    triggerGameOver();
+                }
+            }
+        }
+
+        function updateCharacterImage() {
+            let srcName = "";
+            switch(healthLevel) {
+                case 1: srcName = "sol goz mor.png"; break;
+                case 2: srcName = "sol yanak ve goz.png"; break;
+                case 3: srcName = "sol+ sag goz yanak.png"; break;
+                case 4: srcName = "full olu.png"; break;
+                default: srcName = "hasarsiz.png"; break;
+            }
+            charImg.src = srcName;
+            document.getElementById('camera-preview-img').src = srcName;
+        }
+
+        function triggerGameOver() {
+            isGameActive = false;
+            document.getElementById('game-screen').style.display = 'none';
+            document.getElementById('game-over-screen').style.display = 'flex';
+            bgMusic.pause();
+            ringtone.pause();
+            gameoverSound.play();
+        }
+
+        // --- TELEFON & APP LOGICS ---
+
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('clock-time').innerText = hours + ":" + minutes;
+            if(isGameActive) setTimeout(updateClock, 10000);
+        }
+
+        function openApp(appName) {
+            if(isPhoneRinging) return;
+            document.querySelectorAll('.sub-app-screen').forEach(el => el.style.display = 'none');
+            
+            if(appName === 'messages') document.getElementById('message-app').style.display = 'flex';
+            if(appName === 'insta') document.getElementById('insta-app').style.display = 'flex';
+            if(appName === 'settings') document.getElementById('settings-app').style.display = 'flex';
+            
+            if(appName === 'camera') {
+                document.getElementById('camera-app').style.display = 'flex';
+                document.getElementById('camera-preview-img').src = charImg.src;
+            }
+            
+            if(appName === 'gallery') {
+                renderGallery();
+                document.getElementById('gallery-app').style.display = 'flex';
+            }
+
+            if(appName === 'game') {
+                document.getElementById('game-app').style.display = 'flex';
+            }
+        }
+
+        function goHome() {
+            if(!isPhoneRinging) {
+                document.querySelectorAll('.sub-app-screen').forEach(el => el.style.display = 'none');
+            }
+        }
+
+        function toggleMusic() {
+            const icon = document.getElementById('music-icon');
+            if (bgMusic.paused) {
+                bgMusic.play();
+                icon.innerText = "🎵";
+                icon.style.opacity = 1;
+            } else {
+                bgMusic.pause();
+                icon.innerText = "🔇";
+                icon.style.opacity = 0.5;
+            }
+        }
+
+        function takePhoto() {
+            const flashOverlay = document.getElementById('camera-flash-overlay');
+            flashOverlay.classList.add('cam-flash-active');
+            setTimeout(() => { flashOverlay.classList.remove('cam-flash-active'); }, 200);
+
+            const currentSrc = document.getElementById('camera-preview-img').src;
+            galleryPhotos.push(currentSrc);
+        }
+
+        function renderGallery() {
+            const container = document.getElementById('gallery-grid-container');
+            container.innerHTML = ""; 
+            
+            galleryPhotos.forEach(src => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                const img = document.createElement('img');
+                img.src = src;
+                item.appendChild(img);
+                container.appendChild(item);
+            });
+        }
+
+        function clickCoin() {
+            gameScore += 50;
+            document.getElementById('game-score').innerText = gameScore;
+        }
+
+        function scheduleNextCall() {
+            if (!isGameActive) return;
+            const randomTime = Math.floor(Math.random() * 10000) + 5000;
+            setTimeout(() => {
+                if (isGameActive && !isPhoneRinging) triggerPhoneCall();
+            }, randomTime);
+        }
+
+        function triggerPhoneCall() {
+            goHome(); 
+            isPhoneRinging = true;
+            bgMusic.pause();
+            ringtone.currentTime = 0;
+            ringtone.play();
+
+            phoneWrapper.classList.add('flashlight-on');
+
+            const caller = callers[Math.floor(Math.random() * callers.length)];
+            document.getElementById('caller-name').innerText = caller;
+            document.getElementById('call-screen').style.display = 'flex';
+        }
+
+        function stopRinging() {
+            phoneWrapper.classList.remove('flashlight-on');
+            ringtone.pause();
+        }
+
+        function acceptCall() {
+            stopRinging();
+            cinlama.currentTime = 0;
+            cinlama.play();
+            document.getElementById('caller-name').innerText = "Bağlanıyor...";
+            setTimeout(endCall, 3000);
+        }
+
+        function declineCall() {
+            stopRinging();
+            endCall();
+        }
+
+        function endCall() {
+            document.getElementById('call-screen').style.display = 'none';
+            cinlama.pause();
+            isPhoneRinging = false;
+            
+            if (isGameActive) { 
+                bgMusic.play();
+                scheduleNextCall();
+            }
+        }
+    </script>
+</body>
+</html>
